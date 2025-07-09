@@ -61,11 +61,8 @@ pip install -r requirements.txt
 ## Contributing
 Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
 
-## License
-[MIT](LICENSE)
-
 ---
 **Note:**
 - Do not commit large files, sample documents, or sensitive data.
 - For PDF/OCR support, ensure Poppler and Tesseract are installed on your system.
-- The Mistral AI API key is required for all AI-powered features. 
+- The Mistral AI API key is required for all AI-powered features.
