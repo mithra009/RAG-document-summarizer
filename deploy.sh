@@ -13,6 +13,7 @@ NC='\033[0m' # No Color
 
 # Default values
 NGROK_AUTHTOKEN=""
+MISTRAL_API_KEY=""
 BUILD_ONLY=false
 STOP_ONLY=false
 
@@ -21,6 +22,10 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --token)
             NGROK_AUTHTOKEN="$2"
+            shift 2
+            ;;
+        --mistral-key)
+            MISTRAL_API_KEY="$2"
             shift 2
             ;;
         --build-only)
@@ -34,10 +39,11 @@ while [[ $# -gt 0 ]]; do
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo "Options:"
-            echo "  --token TOKEN     Set ngrok auth token"
-            echo "  --build-only      Only build the Docker image"
-            echo "  --stop-only       Stop running containers"
-            echo "  -h, --help        Show this help message"
+            echo "  --token TOKEN        Set ngrok auth token"
+            echo "  --mistral-key KEY    Set Mistral AI API key (REQUIRED)"
+            echo "  --build-only         Only build the Docker image"
+            echo "  --stop-only          Stop running containers"
+            echo "  -h, --help           Show this help message"
             exit 0
             ;;
         *)
@@ -80,9 +86,18 @@ else
     echo -e "${YELLOW}⚠️  No ngrok auth token provided. Using free tier (limited connections)${NC}"
 fi
 
+# Set Mistral API key if provided
+if [ -n "$MISTRAL_API_KEY" ]; then
+    export MISTRAL_API_KEY="$MISTRAL_API_KEY"
+    echo -e "${GREEN}🔑 Mistral API key set${NC}"
+else
+    echo -e "${RED}❌ No Mistral API key provided. AI features will not work!${NC}"
+    echo -e "${YELLOW}⚠️  Please provide a Mistral API key using --mistral-key parameter${NC}"
+fi
+
 # Create necessary directories
 echo -e "${YELLOW}📁 Creating necessary directories...${NC}"
-mkdir -p uploaded_docs offload
+mkdir -p uploaded_docs
 echo -e "${GREEN}✅ Directories created${NC}"
 
 # Build the Docker image

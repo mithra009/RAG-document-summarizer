@@ -3,6 +3,7 @@ import asyncio
 import re
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
+import requests
 
 # Remove top-level import of transformers and torch
 # from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -60,8 +61,11 @@ def clean_markdown_formatting(text: str) -> str:
     
     return text
 
+MISTRAL_API_KEY = "B397hFaK4F8U1OOfXjHy1plDr8X5FmTa"
+MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
+
 class DocumentSummarizer:
-    def __init__(self, llm_model=None, chunk_size=1200, chunk_overlap=200):
+    def __init__(self, chunk_size=1200, chunk_overlap=200):
         """
         Initialize the document summarizer (CPU-optimized version)
         
@@ -70,7 +74,6 @@ class DocumentSummarizer:
             chunk_size: Size of text chunks for processing (optimized for CPU)
             chunk_overlap: Overlap between chunks (reduced for memory efficiency)
         """
-        self.llm_model = llm_model
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.text_splitter = RecursiveCharacterTextSplitter(
@@ -79,30 +82,7 @@ class DocumentSummarizer:
             length_function=len,
             separators=["\n\n", "\n", ". ", "! ", "? ", " ", ""]
         )
-        self.tokenizer = None
-        self.model = None
-        # Initialize Qwen2-0.5B model if not provided (CPU-friendly)
-        if self.llm_model is None:
-            try:
-                print("[INFO] Loading Qwen2-0.5B model (CPU-optimized)...")
-                from transformers import AutoTokenizer, AutoModelForCausalLM
-                import torch
-                self.tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-0.5B-Instruct")
-                self.model = AutoModelForCausalLM.from_pretrained(
-                    "Qwen/Qwen2-0.5B-Instruct",
-                    torch_dtype=torch.float32,  # Use float32 for CPU
-                    device_map="cpu",  # Force CPU usage
-                    trust_remote_code=True,
-                    low_cpu_mem_usage=True,  # Reduce memory usage
-                    offload_folder="offload"  # Enable model offloading
-                )
-                print("[INFO] Qwen2-0.5B model loaded successfully on CPU!")
-            except Exception as e:
-                print(f"[WARNING] Failed to load Qwen2-0.5B model: {e}")
-                print("[INFO] Falling back to simulated responses")
-                self.tokenizer = None
-                self.model = None
-        
+
     def classify_document_size(self, text: str) -> Dict[str, Any]:
         """
         Classify document as small or large based on content length
@@ -149,29 +129,32 @@ class DocumentSummarizer:
         Returns:
             Truncated text
         """
-        if self.tokenizer is None:
-            # Fallback: simple character-based truncation with higher limit
-            return text[:max_tokens * 4]  # Rough estimate: 4 chars per token
-        
-        # Tokenize the text
-        tokens = self.tokenizer.encode(text, add_special_tokens=False)
-        
-        if len(tokens) <= max_tokens:
-            return text
-        
-        # Truncate to max_tokens and decode back
-        truncated_tokens = tokens[:max_tokens]
-        truncated_text = self.tokenizer.decode(truncated_tokens, skip_special_tokens=True)
-        
-        # Try to end at a sentence boundary
-        last_period = truncated_text.rfind('.')
-        if last_period > len(truncated_text) * 0.8:  # If period is in last 20%
-            truncated_text = truncated_text[:last_period + 1]
-        
-        return truncated_text
-    
+        return text[:max_tokens * 4]
+
+    def call_mistral_api(self, prompt: str) -> str:
+        headers = {
+            "Authorization": f"Bearer {MISTRAL_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "model": "mistral-medium",
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": 500,
+            "temperature": 0.3,
+            "top_p": 0.8
+        }
+        try:
+            response = requests.post(MISTRAL_API_URL, headers=headers, json=data, timeout=60)
+            response.raise_for_status()
+            result = response.json()
+            return result["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            print(f"[WARNING] Error calling Mistral API: {e}")
+            return "[Error: Unable to generate summary with Mistral AI API.]"
+
     async def generate_chunk_summary(self, chunk: Document) -> str:
-        import torch
         """
         Generate summary for a single chunk using Qwen2-0.5B (CPU-optimized)
         
@@ -181,68 +164,10 @@ class DocumentSummarizer:
         Returns:
             Summary text for the chunk
         """
-        if self.model is None or self.tokenizer is None:
-            # Fallback simulation for when model is not available
-            return self._simulate_chunk_summary(chunk.page_content)
-        
-        try:
-            # Truncate chunk content to prevent input overflow (increased limit)
-            truncated_content = self._truncate_text_for_model(chunk.page_content, max_tokens=3000)
-            
-            # Enhanced prompt for better chunk summaries (CPU-optimized) - Plain text format without word limits
-            prompt = f"""<|im_start|>system
-You are an expert document summarizer. Create comprehensive summaries that capture key information from text chunks. Provide summaries in plain text format without markdown formatting.
-
-Guidelines:
-1. Identify main topics and key points
-2. Extract important facts and concepts
-3. Use clear, professional language
-4. Include all relevant information
-5. Write in plain text, not markdown
-6. Avoid repetition but be thorough
-7. Provide detailed summaries without artificial word limits
-
-<|im_end|>
-<|im_start|>user
-Please summarize the following text chunk in plain text format (comprehensive):
-
-{truncated_content}
-
-Summary:
-<|im_end|>
-<|im_start|>assistant
-"""
-            
-            # Generate response using Qwen2-0.5B with reduced tokens for faster processing
-            inputs = self.tokenizer(prompt, return_tensors="pt")
-            
-            with torch.no_grad():
-                outputs = self.model.generate(
-                    inputs.input_ids,
-                    max_new_tokens=500,  # Increased for more comprehensive summaries
-                    temperature=0.3,     # Lower temperature for more focused output
-                    top_p=0.8,           # Reduced for faster sampling
-                    do_sample=True,
-                    repetition_penalty=1.05,  # Reduced penalty for speed
-                    pad_token_id=self.tokenizer.eos_token_id,
-                    eos_token_id=self.tokenizer.eos_token_id
-                )
-            
-            response = self.tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
-            
-            # Clean up the response and remove markdown formatting
-            response = response.strip()
-            if response.endswith('<|im_end|>'):
-                response = response[:-10].strip()
-            
-            # Clean markdown formatting
-            response = clean_markdown_formatting(response)
-            
-            return response if response else self._simulate_chunk_summary(chunk.page_content)
-            
-        except Exception as e:
-            print(f"[WARNING] Error generating chunk summary with Qwen2-0.5B: {e}")
-            return self._simulate_chunk_summary(chunk.page_content)
+        truncated_content = self._truncate_text_for_model(chunk.page_content, max_tokens=3000)
+        prompt = f"""You are an expert document summarizer. Create comprehensive summaries that capture key information from text chunks. Provide summaries in plain text format without markdown formatting.\n\nText to summarize:\n{truncated_content}\n\nSummary:"""
+        response = self.call_mistral_api(prompt)
+        return clean_markdown_formatting(response)
     
     def _simulate_chunk_summary(self, text: str) -> str:
         """
@@ -279,7 +204,6 @@ Summary:
         return summary + ('.' if not summary.endswith('.') else '')
     
     async def summarize_small_document(self, chunks: List[Document]) -> str:
-        import torch
         """
         Summarize small documents (≤15 pages) by summarizing all chunks and combining
         
@@ -307,7 +231,6 @@ Summary:
         return final_summary
     
     async def summarize_large_document(self, chunks: List[Document]) -> str:
-        import torch
         """
         Summarize large documents (>15 pages) using hierarchical summarization
         
@@ -371,7 +294,6 @@ Summary:
         return sections
     
     async def generate_final_summary(self, combined_text: str, doc_type: str) -> str:
-        import torch
         """
         Generate final summary from combined text using Qwen2-0.5B (CPU-optimized)
         
@@ -382,74 +304,9 @@ Summary:
         Returns:
             Final document summary
         """
-        if self.model is None or self.tokenizer is None:
-            return self._simulate_final_summary(combined_text, doc_type)
-        
-        try:
-            # Truncate combined text to prevent input overflow (increased limit)
-            truncated_text = self._truncate_text_for_model(combined_text, max_tokens=4000)
-            
-            # Enhanced prompt for better final summaries (CPU-optimized) - Plain text format without word limits
-            prompt = f"""<|im_start|>system
-You are an expert document analyst. Create comprehensive, well-structured document summaries in plain text format without markdown formatting. Provide detailed summaries without artificial word limits.
-
-Guidelines:
-1. Organize with clear sections using simple text formatting
-2. Cover major themes and important details thoroughly
-3. Use clear, professional language
-4. Highlight key insights and takeaways
-5. Provide appropriate context for technical terms
-6. Write in plain text, not markdown
-7. Be comprehensive and detailed
-8. Avoid repetition but include all important information
-
-<|im_end|>
-<|im_start|>user
-Please create a comprehensive summary of this {doc_type} document in plain text format (detailed):
-
-{truncated_text}
-
-Provide a structured summary with these sections:
-1. Document Overview
-2. Key Themes
-3. Important Findings
-4. Key Points
-5. Conclusions
-
-<|im_end|>
-<|im_start|>assistant
-"""
-            
-            # Generate response using Qwen2-0.5B with reduced tokens for faster processing
-            inputs = self.tokenizer(prompt, return_tensors="pt")
-            
-            with torch.no_grad():
-                outputs = self.model.generate(
-                    inputs.input_ids,
-                    max_new_tokens=600,  # Increased for more comprehensive summaries
-                    temperature=0.3,     # Lower temperature for focused output
-                    top_p=0.8,           # Reduced for faster sampling
-                    do_sample=True,
-                    repetition_penalty=1.05,  # Reduced penalty for speed
-                    pad_token_id=self.tokenizer.eos_token_id,
-                    eos_token_id=self.tokenizer.eos_token_id
-                )
-            
-            response = self.tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
-            
-            # Clean up the response and remove markdown formatting
-            response = response.strip()
-            if response.endswith('<|im_end|>'):
-                response = response[:-10].strip()
-            
-            # Clean markdown formatting
-            response = clean_markdown_formatting(response)
-            
-            return response if response else self._simulate_final_summary(combined_text, doc_type)
-            
-        except Exception as e:
-            print(f"[WARNING] Error generating final summary with Qwen2-0.5B: {e}")
-            return self._simulate_final_summary(combined_text, doc_type)
+        prompt = f"""You are an expert document summarizer. Create a final summary for the following combined text. Provide a comprehensive, plain text summary.\n\nText:\n{combined_text}\n\nFinal Summary:"""
+        response = self.call_mistral_api(prompt)
+        return clean_markdown_formatting(response)
     
     def _simulate_final_summary(self, combined_text: str, doc_type: str) -> str:
         """

@@ -13,7 +13,6 @@ WORKDIR /app
 COPY app/ ./app
 COPY requirements.txt .
 COPY uploaded_docs/ ./uploaded_docs
-COPY offload/ ./offload
 
 # Install Python dependencies
 RUN pip install --upgrade pip && pip install -r requirements.txt
@@ -32,7 +31,8 @@ COPY --from=busybox:latest /bin/sleep /bin/sleep
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-# Set environment variables (ngrok authtoken can be set at runtime)
+# Set environment variables (ngrok authtoken and Mistral API key can be set at runtime)
 ENV NGROK_AUTHTOKEN=""
+ENV MISTRAL_API_KEY=""
 
 ENTRYPOINT ["/docker-entrypoint.sh"]

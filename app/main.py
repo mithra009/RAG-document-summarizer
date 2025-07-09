@@ -7,14 +7,7 @@ from .chunking import chunk_text
 from .vector_store import add_to_vector_store, similarity_search
 from .summarizer import DocumentSummarizer, clean_markdown_formatting
 
-# Import Qwen2-0.5B dependencies (CPU-optimized)
-try:
-    from transformers import AutoTokenizer, AutoModelForCausalLM
-    import torch
-    QWEN_AVAILABLE = True
-except ImportError:
-    QWEN_AVAILABLE = False
-    print("[WARNING] Transformers not available. Using simulated responses for queries.")
+# Remove Qwen/transformers imports and model initialization
 
 app = FastAPI(title="RAG Document Summarizer", version="1.0.0")
 
@@ -29,37 +22,14 @@ async def global_exception_handler(request, exc):
         content={"error": f"Internal server error: {str(exc)}"}
     )
 
-# Global Qwen2-0.5B model instance for queries (CPU-optimized)
-qwen_tokenizer = None
-qwen_model = None
+# Remove Qwen2-0.5B model instance for queries (CPU-optimized)
 
 def initialize_qwen_model():
     """Initialize Qwen2-0.5B model for query responses (CPU-optimized)"""
-    global qwen_tokenizer, qwen_model
-    if not QWEN_AVAILABLE:
-        print("[INFO] Transformers not available, using simulated responses")
-        return False
-    try:
-        print("[INFO] Loading Qwen2-0.5B model for queries (CPU-optimized)...")
-        from transformers import AutoTokenizer, AutoModelForCausalLM
-        import torch
-        qwen_tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-0.5B-Instruct")
-        qwen_model = AutoModelForCausalLM.from_pretrained(
-            "Qwen/Qwen2-0.5B-Instruct",
-            torch_dtype=torch.float32,  # Use float32 for CPU
-            device_map="cpu",  # Force CPU usage
-            trust_remote_code=True,
-            low_cpu_mem_usage=True,  # Reduce memory usage
-            offload_folder="offload"  # Enable model offloading
-        )
-        print("[INFO] Qwen2-0.5B model for queries loaded successfully on CPU!")
-        return True
-    except Exception as e:
-        print(f"[WARNING] Failed to load Qwen2-0.5B model for queries: {e}")
-        print("[INFO] Will use simulated responses instead")
-        qwen_tokenizer = None
-        qwen_model = None
-        return False
+    # This function is no longer needed as Qwen model is removed.
+    # Keeping it for now, but it will not initialize the model.
+    print("[INFO] Qwen model is no longer available. Using simulated responses for queries.")
+    return False
 
 # Initialize model on startup (non-blocking)
 @app.on_event("startup")
@@ -839,71 +809,17 @@ async def query_document(filename: str = Form(...), query: str = Form(...)):
         )
 
 def generate_contextual_response(query: str, context_chunks: List[str]) -> str:
-    """Generate a contextual response based on the query and found chunks using Qwen2-0.5B"""
-    
-    # Combine all relevant chunks
     full_context = " ".join(context_chunks)
-    
-    # Use full context without truncation for better responses
-    # Only limit if context is extremely long to prevent memory issues
-    if len(full_context) > 8000:  # Increased limit for better responses
-        # For extremely long contexts, take more relevant parts
+    if len(full_context) > 8000:
         sentences = full_context.split('. ')
-        if len(sentences) > 20:  # Increased from 10
-            # Take first 5 and last 5 sentences for better context
+        if len(sentences) > 20:
             relevant_sentences = sentences[:5] + sentences[-5:]
             full_context = '. '.join(relevant_sentences)
-    
-    # Use Qwen2-0.5B if available
-    if qwen_model is not None and qwen_tokenizer is not None:
-        try:
-            # Create optimized prompt for comprehensive responses without word limits
-            prompt = f"""<|im_start|>system
-You are a helpful assistant that answers questions based on document content. Provide comprehensive, accurate answers using the given context. Use plain text format without markdown. Provide detailed responses that fully address the user's question.
-<|im_end|>
-<|im_start|>user
-Question: {query}
-
-Context: {full_context}
-
-Answer (comprehensive, plain text):
-<|im_end|>
-<|im_start|>assistant
-"""
-            
-            # Generate response using Qwen2-0.5B with reduced tokens for faster processing
-            inputs = qwen_tokenizer(prompt, return_tensors="pt")
-            
-            with torch.no_grad():
-                outputs = qwen_model.generate(
-                    inputs.input_ids,
-                    max_new_tokens=500,  # Increased for more comprehensive responses
-                    temperature=0.3,     # Lower temperature for focused output
-                    top_p=0.8,           # Reduced for faster sampling
-                    do_sample=True,
-                    repetition_penalty=1.05,  # Reduced penalty for speed
-                    pad_token_id=qwen_tokenizer.eos_token_id,
-                    eos_token_id=qwen_tokenizer.eos_token_id
-                )
-            
-            response = qwen_tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
-            
-            # Clean up the response and remove markdown formatting
-            response = response.strip()
-            if response.endswith('<|im_end|>'):
-                response = response[:-10].strip()
-            
-            # Clean markdown formatting
-            response = clean_markdown_formatting(response)
-            
-            if response:
-                return response
-                
-        except Exception as e:
-            print(f"[WARNING] Error generating response with Qwen2-0.5B: {e}")
-    
-    # Fallback to simulated response if Qwen2-0.5B is not available or fails
-    return generate_simulated_response(query, full_context)
+    # Use Mistral API for contextual response
+    from app.summarizer import DocumentSummarizer
+    summarizer = DocumentSummarizer()
+    prompt = f"You are a helpful assistant that answers questions based on document content. Provide comprehensive, accurate answers using the given context. Use plain text format without markdown. Provide detailed responses that fully address the user's question.\n\nQuestion: {query}\n\nContext: {full_context}\n\nAnswer (comprehensive, plain text):"
+    return summarizer.call_mistral_api(prompt)
 
 def generate_simulated_response(query: str, full_context: str) -> str:
     """Generate a simulated response when Qwen2-0.5B is not available"""

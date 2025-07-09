@@ -3,6 +3,7 @@
 
 param(
     [string]$NgrokAuthToken = "",
+    [string]$MistralApiKey = "",
     [switch]$BuildOnly = $false,
     [switch]$StopOnly = $false
 )
@@ -44,13 +45,19 @@ if ($NgrokAuthToken) {
     Write-Host "No ngrok auth token provided. Using free tier (limited connections)" -ForegroundColor Yellow
 }
 
+# Set Mistral API key if provided
+if ($MistralApiKey) {
+    $env:MISTRAL_API_KEY = $MistralApiKey
+    Write-Host "Mistral API key set" -ForegroundColor Green
+} else {
+    Write-Host "No Mistral API key provided. AI features will not work!" -ForegroundColor Red
+    Write-Host "Please provide a Mistral API key using -MistralApiKey parameter" -ForegroundColor Yellow
+}
+
 # Create necessary directories
 Write-Host "Creating necessary directories..." -ForegroundColor Yellow
 if (!(Test-Path "uploaded_docs")) {
     New-Item -ItemType Directory -Path "uploaded_docs" | Out-Null
-}
-if (!(Test-Path "offload")) {
-    New-Item -ItemType Directory -Path "offload" | Out-Null
 }
 Write-Host "Directories created" -ForegroundColor Green
 

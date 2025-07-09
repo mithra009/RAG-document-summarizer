@@ -13,10 +13,7 @@ pydantic
 httpx
 python-multipart
 langchain-community
-transformers
-torch
-accelerate
-safetensors
+requests
 pytesseract
 opencv-python
 pillow
