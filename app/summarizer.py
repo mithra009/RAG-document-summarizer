@@ -61,7 +61,7 @@ def clean_markdown_formatting(text: str) -> str:
     
     return text
 
-MISTRAL_API_KEY = "B397hFaK4F8U1OOfXjHy1plDr8X5FmTa"
+MISTRAL_API_KEY = "API"
 MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
 
 class DocumentSummarizer:
