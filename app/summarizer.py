@@ -4,6 +4,7 @@ import re
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
 import requests
+import os
 
 # Remove top-level import of transformers and torch
 # from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -61,7 +62,9 @@ def clean_markdown_formatting(text: str) -> str:
     
     return text
 
-MISTRAL_API_KEY = "API"
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")
+if not MISTRAL_API_KEY:
+    print("[WARNING] MISTRAL_API_KEY environment variable is not set. API calls will fail.")
 MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
 
 class DocumentSummarizer:
