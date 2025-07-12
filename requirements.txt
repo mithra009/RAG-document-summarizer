@@ -1,0 +1,22 @@
+fastapi
+uvicorn
+langchain
+chromadb
+pypdf2
+pdfplumber
+unstructured
+pymupdf
+python-pptx
+python-docx
+sentence-transformers
+pydantic
+httpx
+python-multipart
+langchain-community
+requests
+pytesseract
+opencv-python
+pillow
+numpy
+pdf2image
+# torch, transformers, onnxruntime removed for CPU-only, API-based summarization 
