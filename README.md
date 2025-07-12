@@ -6,7 +6,7 @@ colorTo: purple
 sdk: docker
 pinned: false
 license: mit
-short_description: Advanced AI-powered document summarization and question answering using RAG
+short_description: AI-powered document summarization and Q&A using RAG
 ---
 
 # RAG Document Summarizer
