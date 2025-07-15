@@ -23,6 +23,9 @@ EXPOSE 7860
 # Set environment variables
 ENV MISTRAL_API_KEY=""
 
+RUN mkdir -p /app/cache && chmod 777 /app/cache
+ENV TRANSFORMERS_CACHE=/app/cache
+
 # Create a startup script
 RUN echo '#!/bin/bash\n\
 echo "Starting RAG Document Summarizer..."\n\
