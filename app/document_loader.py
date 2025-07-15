@@ -13,6 +13,7 @@ import cv2
 from pdf2image import convert_from_path
 import tempfile
 import shutil
+import platform
 
 class DocumentLoader:
     def __init__(self, file_path: str):
@@ -160,9 +161,13 @@ class DocumentLoader:
             
             # Convert PDF to images
             print(f"[INFO] Converting PDF to images for OCR...")
-            # Specify the Poppler path explicitly
-            poppler_path = r"C:\poppler\poppler-23.11.0\Library\bin"
-            images = convert_from_path(self.file_path, dpi=300, poppler_path=poppler_path)
+            print(f"[DEBUG] pdftoppm path: {shutil.which('pdftoppm')}")
+            print(f"[DEBUG] pdfinfo path: {shutil.which('pdfinfo')}")
+            if platform.system() == "Windows":
+                poppler_path = r"C:\\poppler\\poppler-23.11.0\\Library\\bin"
+                images = convert_from_path(self.file_path, dpi=300, poppler_path=poppler_path)
+            else:
+                images = convert_from_path(self.file_path, dpi=300)
             
             documents = []
             

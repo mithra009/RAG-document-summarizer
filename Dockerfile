@@ -35,3 +35,5 @@ exec uvicorn app.main:app --host 0.0.0.0 --port 7860 --timeout-keep-alive 75\n\
 
 # Start FastAPI application with startup script
 CMD ["/app/start.sh"]
+
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"

@@ -18,5 +18,5 @@ pytesseract
 opencv-python
 pillow
 numpy
-pdf2image
-# torch, transformers, onnxruntime removed for CPU-only, API-based summarization 
+pdf2image>=1.16.0
+torch 
