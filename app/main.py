@@ -64,7 +64,7 @@ async def ready_check():
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    return """
+    return '''
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -72,38 +72,169 @@ async def read_root():
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Document Summarizer & Query Resolver</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.5.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        * { font-family: 'Inter', sans-serif; }
-        body { background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%); color: #e0e0e0; }
-        .glass-effect { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
-        .toast { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999; min-width: 220px; padding: 1rem 1.5rem; border-radius: 0.75rem; font-weight: 500; display: none; }
-        .toast-success { background: #22c55e; color: #fff; }
-        .toast-error { background: #ef4444; color: #fff; }
-        .spinner { border: 4px solid #e0e0e0; border-top: 4px solid #89CFF0; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        :root {
+            --pastel-blue: #89CFF0;
+            --pastel-green: #A8E6CF;
+            --pastel-purple: #D7A9E3;
+            --pastel-pink: #F5B7B1;
+        }
+        * { font-family: 'Inter', sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%); color: #e0e0e0; line-height: 1.6; min-height: 100vh; overflow-x: hidden; }
+        .glass-effect { background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .glass-effect:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2); }
+        .file-upload-area { background: linear-gradient(135deg, rgba(30, 30, 30, 0.5) 0%, rgba(50, 50, 50, 0.5) 100%); border: 2px dashed rgba(255, 255, 255, 0.2); transition: all 0.3s ease-in-out; }
+        .file-upload-area:hover { border-color: var(--pastel-blue); background: linear-gradient(135deg, rgba(50, 50, 50, 0.5) 0%, rgba(70, 70, 70, 0.5) 100%); transform: scale(1.02); }
+        .file-upload-area.dragover { border-color: var(--pastel-blue); background: linear-gradient(135deg, rgba(70, 70, 70, 0.5) 0%, rgba(90, 90, 90, 0.5) 100%); transform: scale(1.05); }
+        .chunk-card { background: linear-gradient(135deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.1) 100%); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .progress-bar { background: linear-gradient(90deg, var(--pastel-blue) 0%, var(--pastel-green) 100%); transition: width 0.5s ease-in-out; }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-5px); } }
+        .floating-element { animation: float 5s ease-in-out infinite; }
+        .query-bubble { background: linear-gradient(135deg, #333 0%, #444 100%); border-radius: 20px 20px 5px 20px; transition: all 0.3s ease; }
+        .response-bubble { background: linear-gradient(135deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.1) 100%); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px 20px 20px 5px; transition: all 0.3s ease; }
+        @keyframes slide-in { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .animate-slide-in { animation: slide-in 0.3s ease-out; }
     </style>
 </head>
 <body>
-    <div id="toast" class="toast"></div>
-    <div id="globalSpinner" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 hidden"><div class="spinner"></div></div>
-    <header class="relative z-10 py-8"><div class="container mx-auto px-6"><div class="text-center"><h1 class="text-6xl font-bold mb-4">AI Document Summarizer</h1><p class="text-xl mb-6">Advanced Document Processing and Query Resolution</p></div></div></header>
-    <main class="container mx-auto px-6 pb-16">
-        <div class="glass-effect rounded-3xl p-10 mb-8">
-            <h2 class="text-4xl font-bold mb-6 text-center">Document Upload</h2>
-            <div id="fileUploadArea" class="file-upload-area rounded-2xl p-12 text-center cursor-pointer">
-                <svg class="w-16 h-16 mx-auto text-[var(--pastel-blue)] mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                <p class="text-2xl font-semibold mb-2">Drop your documents here</p>
-                <p class="text-gray-400 mb-4">or click to browse</p>
-                <div class="flex justify-center space-x-2 text-sm text-gray-500"><span>Supports: PDF, DOCX, PPTX, TXT</span><span>•</span><span>Max size: 100MB</span></div>
+    <!-- Background Effects -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div class="absolute top-20 left-10 w-64 h-64 bg-[var(--pastel-blue)] rounded-full opacity-5 blur-3xl floating-element"></div>
+        <div class="absolute top-40 right-20 w-48 h-48 bg-[var(--pastel-green)] rounded-full opacity-5 blur-2xl floating-element" style="animation-delay: 1s;"></div>
+        <div class="absolute bottom-20 left-1/3 w-56 h-56 bg-[var(--pastel-purple)] rounded-full opacity-5 blur-3xl floating-element" style="animation-delay: 2s;"></div>
+    </div>
+    <!-- Header -->
+    <header class="relative z-10 py-12">
+        <div class="container mx-auto px-6">
+            <div class="text-center flex items-center justify-center flex-col">
+                <div class="flex items-center mb-4">
+                    <svg class="w-12 h-12 mr-4 text-[var(--pastel-blue)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477 4.5 1.253"></path>
+                    </svg>
+                    <h1 class="text-4xl sm:text-5xl md:text-6xl font-bold">AI Document Summarizer</h1>
+                </div>
+                <p class="text-lg sm:text-xl text-gray-400">Intelligent Document Processing & Query Resolution</p>
             </div>
-            <input type="file" id="fileInput" multiple accept=".pdf,.docx,.pptx,.txt" class="hidden">
-            <div id="processingStatus" class="mt-6 hidden"><div class="bg-gray-800 rounded-xl p-4"><div class="flex items-center justify-between mb-2"><span class="font-medium">Processing Document...</span><span id="processingPercentage" class="text-[var(--pastel-blue)] font-bold">0%</span></div><div class="w-full bg-gray-700 rounded-full h-2"><div id="progressBar" class="progress-bar h-2 rounded-full" style="width: 0%"></div></div><div id="processingSteps" class="mt-4 space-y-2"></div></div></div>
-            <div id="fileList" class="mt-6 space-y-3"></div>
         </div>
-        <div id="documentAnalysis" class="glass-effect rounded-3xl p-10 mb-8 hidden"><h2 class="text-4xl font-bold mb-6">Document Analysis</h2><div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"><div class="chunk-card rounded-xl p-6"><h3 class="text-lg font-semibold mb-2">Document Type</h3><p id="documentType" class="text-gray-400">-</p></div><div class="chunk-card rounded-xl p-6"><h3 class="text-lg font-semibold mb-2">Page Count</h3><p id="pageCount" class="text-gray-400">-</p></div><div class="chunk-card rounded-xl p-6"><h3 class="text-lg font-semibold mb-2">Chunks Created</h3><p id="chunkCount" class="text-gray-400">-</p></div></div><div class="chunk-card rounded-xl p-6"><h3 class="text-xl font-semibold mb-4">Document Summary</h3><div id="documentSummary" class="text-gray-400 leading-relaxed"><div class="processing-animation">Generating summary...</div></div></div></div>
-        <div class="glass-effect rounded-3xl p-10 mb-8"><h2 class="text-4xl font-bold mb-6">Query Resolver</h2><div class="mb-6"><div class="relative"><input type="text" id="queryInput" placeholder="Ask anything about your document..." class="w-full px-6 py-4 bg-gray-800 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-[var(--pastel-blue)]" disabled><button id="querySubmit" class="absolute right-2 top-2 px-6 py-2 bg-gray-800 hover:bg-[var(--pastel-blue)]/20 rounded-xl text-white font-medium transition-all duration-200 disabled:opacity-50" disabled>Ask</button></div></div><div id="queryHistory" class="space-y-4"></div></div>
+    </header>
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 pb-16 relative z-10">
+        <!-- File Upload Section -->
+        <section class="glass-effect rounded-3xl p-4 sm:p-6 md:p-10 mb-8">
+            <h2 class="text-3xl sm:text-4xl font-bold mb-6 text-center">Upload Your Document</h2>
+            <div id="fileUploadArea" class="file-upload-area rounded-2xl p-6 sm:p-8 md:p-12 text-center cursor-pointer">
+                <svg class="w-16 h-16 mx-auto text-[var(--pastel-blue)] mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                <p class="text-xl sm:text-2xl font-semibold mb-2">Drop your document here</p>
+                <p class="text-gray-400 mb-4">or click to browse</p>
+                <div class="flex justify-center space-x-2 text-sm text-gray-500">
+                    <span>Supports: PDF, DOCX, PPTX, TXT</span>
+                    <span>•</span>
+                    <span>Max size: 100MB</span>
+                </div>
+            </div>
+            <input type="file" id="fileInput" accept=".pdf,.docx,.pptx,.txt" class="hidden" aria-label="File upload input">
+            <!-- Current Document -->
+            <div id="currentDocument" class="hidden mt-6 bg-gray-800 p-4 rounded-xl flex items-center justify-between transition-opacity duration-300">
+                <div class="flex items-center">
+                    <svg class="w-6 h-6 mr-3 text-[var(--pastel-blue)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                    </svg>
+                    <span id="currentDocumentName" class="font-medium"></span>
+                </div>
+                <button id="removeDocument" class="text-gray-500 hover:text-red-500" aria-label="Remove document">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <!-- Processing Status -->
+            <div id="processingStatus" class="mt-6 hidden">
+                <div class="bg-gray-800 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-medium">Processing Document...</span>
+                        <span id="processingPercentage" class="text-[var(--pastel-blue)] font-bold">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
+                        <div id="progressBar" class="progress-bar h-2 rounded-full" style="width: 0%"></div>
+                    </div>
+                    <div id="processingSteps" class="mt-4 space-y-2 text-sm text-gray-400"></div>
+                </div>
+            </div>
+        </section>
+        <!-- Document Analysis & Summary -->
+        <section id="documentAnalysis" class="glass-effect rounded-3xl p-4 sm:p-6 md:p-10 mb-8 hidden">
+            <h2 class="text-3xl sm:text-4xl font-bold mb-6">Document Insights</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div class="chunk-card rounded-xl p-6">
+                    <h3 class="text-lg font-semibold mb-2">Document Type</h3>
+                    <p id="documentType" class="text-gray-400">-</p>
+                </div>
+                <div class="chunk-card rounded-xl p-6">
+                    <h3 class="text-lg font-semibold mb-2">Page Count</h3>
+                    <p id="pageCount" class="text-gray-400">-</p>
+                </div>
+                <div class="chunk-card rounded-xl p-6">
+                    <h3 class="text-lg font-semibold mb-2">Chunks Created</h3>
+                    <p id="chunkCount" class="text-gray-400">-</p>
+                </div>
+            </div>
+            <div class="chunk-card rounded-xl p-6">
+                <h3 class="text-xl font-semibold mb-4">Summary</h3>
+                <p id="documentSummary" class="text-gray-400 leading-relaxed prose prose-invert"></p>
+            </div>
+        </section>
+        <!-- Query Interface -->
+        <section class="glass-effect rounded-3xl p-4 sm:p-6 md:p-10">
+            <h2 class="text-3xl sm:text-4xl font-bold mb-6">Ask Your Document</h2>
+            <div class="mb-6">
+                <div class="relative">
+                    <input 
+                        type="text" 
+                        id="queryInput" 
+                        placeholder="Ask anything about your document..."
+                        class="w-full px-6 py-4 bg-gray-800 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-[var(--pastel-blue)] transition-all duration-200 disabled:opacity-50"
+                        disabled
+                        aria-label="Query input"
+                    >
+                    <button 
+                        id="querySubmit" 
+                        class="absolute right-2 top-2 px-6 py-2 bg-[var(--pastel-blue)] hover:bg-[var(--pastel-blue)]/80 text-gray-900 rounded-xl font-medium transition-all duration-200 disabled:opacity-50"
+                        disabled
+                        aria-label="Submit query"
+                    >
+                        Ask
+                    </button>
+                </div>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    <button class="suggestion-btn px-4 py-2 bg-gray-800 hover:bg-[var(--pastel-blue)]/20 hover:scale-105 rounded-full text-sm text-gray-400 transition-all duration-200 disabled:opacity-50" disabled aria-label="Suggestion: Key points">
+                        What are the key points?
+                    </button>
+                    <button class="suggestion-btn px-4 py-2 bg-gray-800 hover:bg-[var(--pastel-blue)]/20 hover:scale-105 rounded-full text-sm text-gray-400 transition-all duration-200 disabled:opacity-50" disabled aria-label="Suggestion: Main concepts">
+                        Explain the main concepts
+                    </button>
+                    <button class="suggestion-btn px-4 py-2 bg-gray-800 hover:bg-[var(--pastel-blue)]/20 hover:scale-105 rounded-full text-sm text-gray-400 transition-all duration-200 disabled:opacity-50" disabled aria-label="Suggestion: Conclusions">
+                        What conclusions are drawn?
+                    </button>
+                </div>
+            </div>
+            <div class="flex justify-end mb-4">
+                <button id="clearHistory" class="px-4 py-2 bg-gray-800 hover:bg-red-500/20 rounded-full text-sm text-gray-400 transition-all duration-200" aria-label="Clear query history">
+                    Clear History
+                </button>
+            </div>
+            <div id="queryHistory" class="space-y-4 max-h-96 overflow-y-auto pr-2"></div>
+        </section>
     </main>
+    <!-- Footer -->
+    <footer class="text-center py-6 text-gray-500 text-sm">
+        <p>Powered by AI • Designed with ❤️</p>
+    </footer>
     <script>
     // Toast notification
     function showToast(message, type = 'success') {
@@ -223,7 +354,7 @@ async def read_root():
     </script>
 </body>
 </html>
-"""
+'''
 
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
