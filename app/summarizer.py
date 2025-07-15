@@ -206,72 +206,43 @@ class DocumentSummarizer:
     async def summarize_small_document(self, chunks: List[Document]) -> str:
         """
         Summarize small documents (≤15 pages) by summarizing all chunks and combining
-        
-        Args:
-            chunks: List of document chunks
-            
-        Returns:
-            Combined document summary
         """
         print(f"Processing small document with {len(chunks)} chunks...")
-        
-        # Generate summaries for all chunks
-        chunk_summaries = []
-        for i, chunk in enumerate(chunks):
-            print(f"Summarizing chunk {i+1}/{len(chunks)}...")
-            summary = await self.generate_chunk_summary(chunk)
-            chunk_summaries.append(summary)
-        
+        # Generate summaries for all chunks in parallel
+        chunk_summaries = await asyncio.gather(*(self.generate_chunk_summary(chunk) for chunk in chunks))
         # Combine all chunk summaries
         combined_summary = " ".join(chunk_summaries)
-        
         # Generate final summary from combined summaries
         final_summary = await self.generate_final_summary(combined_summary, "small")
-        
         return final_summary
     
     async def summarize_large_document(self, chunks: List[Document]) -> str:
         """
         Summarize large documents (>15 pages) using hierarchical summarization
-        
-        Args:
-            chunks: List of document chunks
-            
-        Returns:
-            Hierarchical document summary
         """
         print(f"Processing large document with {len(chunks)} chunks using hierarchical summarization...")
-        
-        # Step 1: Generate chunk-level summaries
-        chunk_summaries = []
-        for i, chunk in enumerate(chunks):
-            print(f"Generating chunk summary {i+1}/{len(chunks)}...")
-            summary = await self.generate_chunk_summary(chunk)
-            chunk_summaries.append(summary)
-        
+        # Step 1: Generate chunk-level summaries in parallel
+        chunk_summaries = await asyncio.gather(*(self.generate_chunk_summary(chunk) for chunk in chunks))
         # Step 2: Group summaries into sections (for very large documents)
         if len(chunk_summaries) > 50:
             section_summaries = await self._create_section_summaries(chunk_summaries)
         else:
             section_summaries = chunk_summaries
-        
-        # Step 3: Generate section-level summaries
+        # Step 3: Generate section-level summaries in parallel
         section_level_summaries = []
-        for i, section in enumerate(section_summaries):
-            print(f"Generating section summary {i+1}/{len(section_summaries)}...")
-            if isinstance(section, list):
-                combined_section = " ".join(section)
-            else:
-                combined_section = section
-            section_summary = await self.generate_chunk_summary(
-                Document(page_content=combined_section, metadata={"section_id": i})
-            )
-            section_level_summaries.append(section_summary)
-        
+        if isinstance(section_summaries[0], list):
+            section_level_summaries = await asyncio.gather(*(
+                self.generate_chunk_summary(Document(page_content=" ".join(section), metadata={"section_id": i}))
+                for i, section in enumerate(section_summaries)
+            ))
+        else:
+            section_level_summaries = await asyncio.gather(*(
+                self.generate_chunk_summary(Document(page_content=section, metadata={"section_id": i}))
+                for i, section in enumerate(section_summaries)
+            ))
         # Step 4: Generate final hierarchical summary
         final_combined = " ".join(section_level_summaries)
         final_summary = await self.generate_final_summary(final_combined, "large")
-        
         return final_summary
     
     async def _create_section_summaries(self, chunk_summaries: List[str]) -> List[List[str]]:
