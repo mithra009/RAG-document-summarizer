@@ -6,6 +6,8 @@ from .document_loader import DocumentLoader
 from .chunking import chunk_text
 from .vector_store import add_to_vector_store, similarity_search
 from .summarizer import DocumentSummarizer, clean_markdown_formatting
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 # Remove Qwen/transformers imports and model initialization
 
@@ -355,6 +357,16 @@ async def read_root():
 </body>
 </html>
 '''
+
+# Serve static files (frontend build)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/{full_path:path}", response_class=HTMLResponse)
+async def serve_frontend(full_path: str):
+    index_path = os.path.join("static", "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return HTMLResponse("<h1>Frontend not built yet.</h1>", status_code=404)
 
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
