@@ -820,15 +820,13 @@ async def query_document(filename: str = Form(...), query: str = Form(...)):
 
 def generate_contextual_response(query: str, context_chunks: List[str]) -> str:
     full_context = " ".join(context_chunks)
-    if len(full_context) > 8000:
-        sentences = full_context.split('. ')
-        if len(sentences) > 20:
-            relevant_sentences = sentences[:5] + sentences[-5:]
-            full_context = '. '.join(relevant_sentences)
-    # Use Mistral API for contextual response
+    # Remove any truncation logic here
     from app.summarizer import DocumentSummarizer
     summarizer = DocumentSummarizer()
-    prompt = f"You are a helpful assistant that answers questions based on document content. Provide comprehensive, accurate answers using the given context. Use plain text format without markdown. Provide detailed responses that fully address the user's question.\n\nQuestion: {query}\n\nContext: {full_context}\n\nAnswer (comprehensive, plain text):"
+    prompt = (
+        "You are a helpful assistant that answers questions based on document content. Answer only to the point, with a short, concise, and accurate response. Do not add unnecessary details. Use plain text format without markdown.\n\nQuestion: "
+        f"{query}\n\nContext: {full_context}\n\nShort Answer (to the point):"
+    )
     return summarizer.call_mistral_api(prompt)
 
 def generate_simulated_response(query: str, full_context: str) -> str:

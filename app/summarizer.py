@@ -160,15 +160,12 @@ class DocumentSummarizer:
     async def generate_chunk_summary(self, chunk: Document) -> str:
         """
         Generate summary for a single chunk using Qwen2-0.5B (CPU-optimized)
-        
-        Args:
-            chunk: Document chunk to summarize
-            
-        Returns:
-            Summary text for the chunk
         """
         truncated_content = self._truncate_text_for_model(chunk.page_content, max_tokens=3000)
-        prompt = f"""You are an expert document summarizer. Create comprehensive summaries that capture key information from text chunks. Provide summaries in plain text format without markdown formatting.\n\nText to summarize:\n{truncated_content}\n\nSummary:"""
+        prompt = (
+            "You are an expert document summarizer. Create a concise, accurate, and precise summary that captures only the most important information from the text chunk. Do not include unnecessary details. Provide the summary in plain text format without markdown formatting.\n\nText to summarize:\n"
+            f"{truncated_content}\n\nSummary (concise, accurate, precise):"
+        )
         response = self.call_mistral_api(prompt)
         return clean_markdown_formatting(response)
     
@@ -299,15 +296,11 @@ class DocumentSummarizer:
     async def generate_final_summary(self, combined_text: str, doc_type: str) -> str:
         """
         Generate final summary from combined text using Qwen2-0.5B (CPU-optimized)
-        
-        Args:
-            combined_text: Combined text to summarize
-            doc_type: Type of document (small/large)
-            
-        Returns:
-            Final document summary
         """
-        prompt = f"""You are an expert document summarizer. Create a final summary for the following combined text. Provide a comprehensive, plain text summary.\n\nText:\n{combined_text}\n\nFinal Summary:"""
+        prompt = (
+            "You are an expert document summarizer. Create a concise, accurate, and precise final summary for the following combined text. Only include the most important points. Do not add unnecessary details. Provide the summary in plain text format.\n\nText:\n"
+            f"{combined_text}\n\nFinal Summary (concise, accurate, precise):"
+        )
         response = self.call_mistral_api(prompt)
         return clean_markdown_formatting(response)
     
