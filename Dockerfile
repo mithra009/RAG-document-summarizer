@@ -18,10 +18,17 @@ RUN mkdir -p ./uploaded_docs
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # Expose FastAPI port
-EXPOSE 8000
+EXPOSE 7860
 
 # Set environment variables
 ENV MISTRAL_API_KEY=""
 
-# Start FastAPI application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Create a startup script
+RUN echo '#!/bin/bash\n\
+echo "Starting RAG Document Summarizer..."\n\
+sleep 5\n\
+exec uvicorn app.main:app --host 0.0.0.0 --port 7860 --timeout-keep-alive 75\n\
+' > /app/start.sh && chmod +x /app/start.sh
+
+# Start FastAPI application with startup script
+CMD ["/app/start.sh"]

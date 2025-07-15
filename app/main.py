@@ -52,6 +52,16 @@ async def health_check():
     """Simple health check endpoint"""
     return {"status": "healthy", "message": "RAG application is running"}
 
+@app.get("/api")
+async def api_root():
+    """API root endpoint for health checks"""
+    return {"status": "healthy", "message": "RAG application is running"}
+
+@app.get("/ready")
+async def ready_check():
+    """Immediate health check for Hugging Face Spaces"""
+    return {"ready": True, "status": "running"}
+
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
     return """
