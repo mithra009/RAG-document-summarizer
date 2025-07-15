@@ -12,7 +12,7 @@ WORKDIR /app
 # Copy application code
 COPY app/ ./app
 COPY requirements.txt .
-RUN mkdir -p ./uploaded_docs
+RUN mkdir -p ./uploaded_docs && chmod 777 ./uploaded_docs
 
 # Install Python dependencies
 RUN pip install --upgrade pip && pip install -r requirements.txt
