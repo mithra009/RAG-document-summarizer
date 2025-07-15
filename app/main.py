@@ -72,591 +72,158 @@ async def read_root():
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Document Summarizer & Query Resolver</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.5.0/mammoth.browser.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        
-        :root {
-            --pastel-blue: #89CFF0;
-            --pastel-green: #A8E6CF;
-            --pastel-purple: #D7A9E3;
-            --pastel-pink: #F5B7B1;
-        }
-        
-        * {
-            font-family: 'Inter', sans-serif;
-        }
-        
-        body {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
-            color: #e0e0e0;
-            line-height: 1.6;
-        }
-        
-        .glass-effect {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-        }
-        
-        .file-upload-area {
-            background: linear-gradient(135deg, rgba(30, 30, 30, 0.5) 0%, rgba(50, 50, 50, 0.5) 100%);
-            border: 2px dashed rgba(255, 255, 255, 0.2);
-            transition: all 0.3s ease;
-        }
-        
-        .file-upload-area:hover {
-            border-color: var(--pastel-blue);
-        }
-        
-        .chunk-card {
-            background: linear-gradient(135deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.1) 100%);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .progress-bar {
-            background: linear-gradient(90deg, var(--pastel-blue) 0%, var(--pastel-green) 100%);
-        }
-        
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-5px); }
-        }
-        
-        .floating-element {
-            animation: float 5s ease-in-out infinite;
-        }
-        
-        .query-bubble {
-            background: linear-gradient(135deg, #333 0%, #444 100%);
-            border-radius: 20px 20px 5px 20px;
-        }
-        
-        .response-bubble {
-            background: linear-gradient(135deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.1) 100%);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px 20px 20px 5px;
-        }
-        
-        h1 {
-            font-size: 3.75rem;
-            font-weight: 700;
-        }
-        
-        h2 {
-            font-size: 2.25rem;
-            font-weight: 600;
-        }
+        * { font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%); color: #e0e0e0; }
+        .glass-effect { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
+        .toast { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999; min-width: 220px; padding: 1rem 1.5rem; border-radius: 0.75rem; font-weight: 500; display: none; }
+        .toast-success { background: #22c55e; color: #fff; }
+        .toast-error { background: #ef4444; color: #fff; }
+        .spinner { border: 4px solid #e0e0e0; border-top: 4px solid #89CFF0; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-    <!-- Background Effects -->
-    <div class="fixed inset-0 overflow-hidden pointer-events-none">
-        <div class="absolute top-20 left-10 w-64 h-64 bg-[var(--pastel-blue)] rounded-full opacity-5 blur-3xl floating-element"></div>
-        <div class="absolute top-40 right-20 w-48 h-48 bg-[var(--pastel-green)] rounded-full opacity-5 blur-2xl floating-element" style="animation-delay: 1s;"></div>
-        <div class="absolute bottom-20 left-1/3 w-56 h-56 bg-[var(--pastel-purple)] rounded-full opacity-5 blur-3xl floating-element" style="animation-delay: 2s;"></div>
-    </div>
-
-    <!-- Header -->
-    <header class="relative z-10 py-8">
-        <div class="container mx-auto px-6">
-            <div class="text-center">
-                <h1 class="text-6xl font-bold mb-4">AI Document Summarizer</h1>
-                <p class="text-xl mb-6">Advanced Document Processing and Query Resolution</p>
-            </div>
-        </div>
-    </header>
-
-    <!-- Main Content -->
+    <div id="toast" class="toast"></div>
+    <div id="globalSpinner" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 hidden"><div class="spinner"></div></div>
+    <header class="relative z-10 py-8"><div class="container mx-auto px-6"><div class="text-center"><h1 class="text-6xl font-bold mb-4">AI Document Summarizer</h1><p class="text-xl mb-6">Advanced Document Processing and Query Resolution</p></div></div></header>
     <main class="container mx-auto px-6 pb-16">
-        <!-- File Upload Section -->
         <div class="glass-effect rounded-3xl p-10 mb-8">
             <h2 class="text-4xl font-bold mb-6 text-center">Document Upload</h2>
-            
             <div id="fileUploadArea" class="file-upload-area rounded-2xl p-12 text-center cursor-pointer">
-                <div class="mb-4">
-                    <svg class="w-16 h-16 mx-auto text-[var(--pastel-blue)] mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                    </svg>
-                </div>
+                <svg class="w-16 h-16 mx-auto text-[var(--pastel-blue)] mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
                 <p class="text-2xl font-semibold mb-2">Drop your documents here</p>
                 <p class="text-gray-400 mb-4">or click to browse</p>
-                <div class="flex justify-center space-x-2 text-sm text-gray-500">
-                    <span>Supports: PDF, DOCX, PPTX, TXT</span>
-                    <span>•</span>
-                    <span>Max size: 100MB</span>
-                </div>
+                <div class="flex justify-center space-x-2 text-sm text-gray-500"><span>Supports: PDF, DOCX, PPTX, TXT</span><span>•</span><span>Max size: 100MB</span></div>
             </div>
-            
             <input type="file" id="fileInput" multiple accept=".pdf,.docx,.pptx,.txt" class="hidden">
-            
-            <!-- Processing Status -->
-            <div id="processingStatus" class="mt-6 hidden">
-                <div class="bg-gray-800 rounded-xl p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="font-medium">Processing Document...</span>
-                        <span id="processingPercentage" class="text-[var(--pastel-blue)] font-bold">0%</span>
-                    </div>
-                    <div class="w-full bg-gray-700 rounded-full h-2">
-                        <div id="progressBar" class="progress-bar h-2 rounded-full" style="width: 0%"></div>
-                    </div>
-                    <div id="processingSteps" class="mt-4 space-y-2"></div>
-                </div>
-            </div>
-            
-            <!-- File List -->
+            <div id="processingStatus" class="mt-6 hidden"><div class="bg-gray-800 rounded-xl p-4"><div class="flex items-center justify-between mb-2"><span class="font-medium">Processing Document...</span><span id="processingPercentage" class="text-[var(--pastel-blue)] font-bold">0%</span></div><div class="w-full bg-gray-700 rounded-full h-2"><div id="progressBar" class="progress-bar h-2 rounded-full" style="width: 0%"></div></div><div id="processingSteps" class="mt-4 space-y-2"></div></div></div>
             <div id="fileList" class="mt-6 space-y-3"></div>
         </div>
-
-        <!-- Document Analysis & Summary -->
-        <div id="documentAnalysis" class="glass-effect rounded-3xl p-10 mb-8 hidden">
-            <h2 class="text-4xl font-bold mb-6">Document Analysis</h2>
-            
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                <div class="chunk-card rounded-xl p-6">
-                    <h3 class="text-lg font-semibold mb-2">Document Type</h3>
-                    <p id="documentType" class="text-gray-400">-</p>
-                </div>
-                
-                <div class="chunk-card rounded-xl p-6">
-                    <h3 class="text-lg font-semibold mb-2">Page Count</h3>
-                    <p id="pageCount" class="text-gray-400">-</p>
-                </div>
-                
-                <div class="chunk-card rounded-xl p-6">
-                    <h3 class="text-lg font-semibold mb-2">Chunks Created</h3>
-                    <p id="chunkCount" class="text-gray-400">-</p>
-                </div>
-            </div>
-            
-            <div class="chunk-card rounded-xl p-6">
-                <h3 class="text-xl font-semibold mb-4">Document Summary</h3>
-                <div id="documentSummary" class="text-gray-400 leading-relaxed">
-                    <div class="processing-animation">Generating summary...</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Query Interface -->
-        <div class="glass-effect rounded-3xl p-10 mb-8">
-            <h2 class="text-4xl font-bold mb-6">Query Resolver</h2>
-            
-            <div class="mb-6">
-                <div class="relative">
-                    <input 
-                        type="text" 
-                        id="queryInput" 
-                        placeholder="Ask anything about your document..."
-                        class="w-full px-6 py-4 bg-gray-800 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-[var(--pastel-blue)]"
-                        disabled
-                    >
-                    <button 
-                        id="querySubmit" 
-                        class="absolute right-2 top-2 px-6 py-2 bg-gray-800 hover:bg-[var(--pastel-blue)]/20 rounded-xl text-white font-medium transition-all duration-200 disabled:opacity-50"
-                        disabled
-                    >
-                        Ask
-                    </button>
-                </div>
-                <div class="mt-3 flex flex-wrap gap-2">
-                    <button class="suggestion-btn px-4 py-2 bg-gray-800 hover:bg-[var(--pastel-blue)]/20 rounded-full text-sm text-gray-400 transition-all duration-200">
-                        What are the key points?
-                    </button>
-                    <button class="suggestion-btn px-4 py-2 bg-gray-800 hover:bg-[var(--pastel-blue)]/20 rounded-full text-sm text-gray-400 transition-all duration-200">
-                        Explain the main concepts
-                    </button>
-                    <button class="suggestion-btn px-4 py-2 bg-gray-800 hover:bg-[var(--pastel-blue)]/20 rounded-full text-sm text-gray-400 transition-all duration-200">
-                        What conclusions are drawn?
-                    </button>
-                </div>
-            </div>
-            
-            <div id="queryHistory" class="space-y-4 max-h-96 overflow-y-auto"></div>
-        </div>
+        <div id="documentAnalysis" class="glass-effect rounded-3xl p-10 mb-8 hidden"><h2 class="text-4xl font-bold mb-6">Document Analysis</h2><div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"><div class="chunk-card rounded-xl p-6"><h3 class="text-lg font-semibold mb-2">Document Type</h3><p id="documentType" class="text-gray-400">-</p></div><div class="chunk-card rounded-xl p-6"><h3 class="text-lg font-semibold mb-2">Page Count</h3><p id="pageCount" class="text-gray-400">-</p></div><div class="chunk-card rounded-xl p-6"><h3 class="text-lg font-semibold mb-2">Chunks Created</h3><p id="chunkCount" class="text-gray-400">-</p></div></div><div class="chunk-card rounded-xl p-6"><h3 class="text-xl font-semibold mb-4">Document Summary</h3><div id="documentSummary" class="text-gray-400 leading-relaxed"><div class="processing-animation">Generating summary...</div></div></div></div>
+        <div class="glass-effect rounded-3xl p-10 mb-8"><h2 class="text-4xl font-bold mb-6">Query Resolver</h2><div class="mb-6"><div class="relative"><input type="text" id="queryInput" placeholder="Ask anything about your document..." class="w-full px-6 py-4 bg-gray-800 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-[var(--pastel-blue)]" disabled><button id="querySubmit" class="absolute right-2 top-2 px-6 py-2 bg-gray-800 hover:bg-[var(--pastel-blue)]/20 rounded-xl text-white font-medium transition-all duration-200 disabled:opacity-50" disabled>Ask</button></div></div><div id="queryHistory" class="space-y-4"></div></div>
     </main>
-
     <script>
-        // Global state
-        let documents = [];
-        let currentDocument = null;
-        let documentChunks = [];
-        let isProcessing = false;
-
-        // Initialize application
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeFileUpload();
-            initializeQueryInterface();
-            initializeSuggestions();
-        });
-
-        function initializeFileUpload() {
-            const fileUploadArea = document.getElementById('fileUploadArea');
-            const fileInput = document.getElementById('fileInput');
-
-            fileUploadArea.addEventListener('click', () => {
-                if (!isProcessing) {
-                    fileInput.click();
-                }
-            });
-
-            fileInput.addEventListener('change', (e) => {
-                handleFiles(e.target.files);
-            });
-
-            fileUploadArea.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                fileUploadArea.classList.add('dragover');
-            });
-
-            fileUploadArea.addEventListener('dragleave', () => {
-                fileUploadArea.classList.remove('dragover');
-            });
-
-            fileUploadArea.addEventListener('drop', (e) => {
-                e.preventDefault();
-                fileUploadArea.classList.remove('dragover');
-                handleFiles(e.dataTransfer.files);
-            });
+    // Toast notification
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = 'toast ' + (type === 'success' ? 'toast-success' : 'toast-error');
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 3500);
+    }
+    // Global spinner
+    function showSpinner() { document.getElementById('globalSpinner').classList.remove('hidden'); }
+    function hideSpinner() { document.getElementById('globalSpinner').classList.add('hidden'); }
+    // File upload logic
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const processingStatus = document.getElementById('processingStatus');
+    const progressBar = document.getElementById('progressBar');
+    const processingPercentage = document.getElementById('processingPercentage');
+    const processingSteps = document.getElementById('processingSteps');
+    const fileList = document.getElementById('fileList');
+    const documentAnalysis = document.getElementById('documentAnalysis');
+    const documentType = document.getElementById('documentType');
+    const pageCount = document.getElementById('pageCount');
+    const chunkCount = document.getElementById('chunkCount');
+    const documentSummary = document.getElementById('documentSummary');
+    const queryInput = document.getElementById('queryInput');
+    const querySubmit = document.getElementById('querySubmit');
+    const queryHistory = document.getElementById('queryHistory');
+    let currentFilename = '';
+    // Drag and drop
+    fileUploadArea.addEventListener('click', () => fileInput.click());
+    fileUploadArea.addEventListener('dragover', e => { e.preventDefault(); fileUploadArea.classList.add('border-blue-400'); });
+    fileUploadArea.addEventListener('dragleave', e => { e.preventDefault(); fileUploadArea.classList.remove('border-blue-400'); });
+    fileUploadArea.addEventListener('drop', e => {
+        e.preventDefault();
+        fileUploadArea.classList.remove('border-blue-400');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            handleFileUpload();
         }
-
-        function initializeQueryInterface() {
-            const queryInput = document.getElementById('queryInput');
-            const querySubmit = document.getElementById('querySubmit');
-
-            querySubmit.addEventListener('click', () => {
-                const query = queryInput.value.trim();
-                if (query) {
-                    processQuery(query);
-                    queryInput.value = '';
-                }
-            });
-
-            queryInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    querySubmit.click();
-                }
-            });
+    });
+    fileInput.addEventListener('change', handleFileUpload);
+    async function handleFileUpload() {
+        if (!fileInput.files.length) return;
+        showSpinner();
+        processingStatus.classList.remove('hidden');
+        progressBar.style.width = '0%';
+        processingPercentage.textContent = '0%';
+        processingSteps.innerHTML = '<div>Uploading file...</div>';
+        fileList.innerHTML = '';
+        documentAnalysis.classList.add('hidden');
+        queryInput.disabled = true;
+        querySubmit.disabled = true;
+        try {
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await fetch('/upload', { method: 'POST', body: formData });
+            if (!response.ok) throw new Error('Upload failed');
+            const data = await response.json();
+            currentFilename = data.filename;
+            progressBar.style.width = '100%';
+            processingPercentage.textContent = '100%';
+            processingSteps.innerHTML += '<div>Processing complete!</div>';
+            setTimeout(() => { processingStatus.classList.add('hidden'); }, 1000);
+            // Show analysis
+            documentAnalysis.classList.remove('hidden');
+            documentType.textContent = data.classification;
+            pageCount.textContent = data.page_estimate;
+            chunkCount.textContent = data.chunk_count;
+            documentSummary.textContent = data.summary;
+            queryInput.disabled = false;
+            querySubmit.disabled = false;
+            showToast('File uploaded and processed!', 'success');
+        } catch (err) {
+            showToast('Error: ' + (err.message || 'Failed to upload/process file'), 'error');
+            processingStatus.classList.add('hidden');
+        } finally {
+            hideSpinner();
         }
-
-        function initializeSuggestions() {
-            document.querySelectorAll('.suggestion-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const query = btn.textContent.trim();
-                    document.getElementById('queryInput').value = query;
-                    document.getElementById('querySubmit').click();
-                });
-            });
+    }
+    // Query logic
+    querySubmit.addEventListener('click', handleQuery);
+    queryInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleQuery(); });
+    async function handleQuery() {
+        const query = queryInput.value.trim();
+        if (!query || !currentFilename) return;
+        queryInput.disabled = true;
+        querySubmit.disabled = true;
+        showSpinner();
+        const userBubble = document.createElement('div');
+        userBubble.className = 'query-bubble p-4 mb-2';
+        userBubble.textContent = query;
+        queryHistory.appendChild(userBubble);
+        const responseBubble = document.createElement('div');
+        responseBubble.className = 'response-bubble p-4 mb-4';
+        responseBubble.textContent = 'Thinking...';
+        queryHistory.appendChild(responseBubble);
+        try {
+            const formData = new FormData();
+            formData.append('filename', currentFilename);
+            formData.append('query', query);
+            const response = await fetch('/query', { method: 'POST', body: formData });
+            if (!response.ok) throw new Error('Query failed');
+            const data = await response.json();
+            responseBubble.textContent = data.answer;
+            showToast('Query answered!', 'success');
+        } catch (err) {
+            responseBubble.textContent = 'Error: ' + (err.message || 'Failed to get answer');
+            showToast('Error: ' + (err.message || 'Failed to get answer'), 'error');
+        } finally {
+            queryInput.disabled = false;
+            querySubmit.disabled = false;
+            hideSpinner();
         }
-
-        async function handleFiles(files) {
-            if (isProcessing) return;
-
-            for (const file of files) {
-                if (validateFile(file)) {
-                    await processDocument(file);
-                }
-            }
-        }
-
-        function validateFile(file) {
-            const allowedTypes = [
-                'application/pdf',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                'text/plain'
-            ];
-
-            if (!allowedTypes.includes(file.type)) {
-                showNotification('Unsupported file type. Please upload PDF, DOCX, PPTX, or TXT files.', 'error');
-                return false;
-            }
-
-            if (file.size > 100 * 1024 * 1024) {
-                showNotification('File too large. Maximum size is 100MB.', 'error');
-                return false;
-            }
-
-            return true;
-        }
-
-        async function processDocument(file) {
-            isProcessing = true;
-            showProcessingStatus();
-
-            try {
-                updateProcessingStep('Uploading document...', 10);
-                
-                // Create FormData for file upload
-                const formData = new FormData();
-                formData.append('file', file);
-                
-                updateProcessingStep('Processing document...', 30);
-                
-                // Send file to backend
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (!response.ok) {
-                    let errorMessage = 'Upload failed';
-                    let errorText = '';
-                    try {
-                        // Try to parse as JSON
-                        const errorData = await response.json();
-                        errorMessage = errorData.error || 'Upload failed';
-                    } catch (jsonError) {
-                        // Only try to read as text if .json() fails and errorText is still empty
-                        if (!errorText) {
-                            errorText = await response.text();
-                            console.error('Non-JSON error response:', errorText);
-                        }
-                        errorMessage = `Server error (${response.status}): ${response.statusText}`;
-                    }
-                    throw new Error(errorMessage);
-                }
-                
-                updateProcessingStep('Analyzing content...', 70);
-                
-                // Only read the response body once
-                const result = await response.json();
-                
-                updateProcessingStep('Processing complete!', 100);
-                
-                const document = {
-                    id: Date.now(),
-                    name: file.name,
-                    type: getFileType(file.name),
-                    size: file.size,
-                    pageCount: result.page_estimate || 1,
-                    chunks: result.chunk_count || 0,
-                    summary: result.summary,
-                    classification: result.classification,
-                    processingMethod: result.processing_method
-                };
-                
-                documents.push(document);
-                currentDocument = document;
-                
-                displayDocumentInfo(document);
-                enableQueryInterface();
-                
-                setTimeout(() => {
-                    hideProcessingStatus();
-                    showNotification('Document processed successfully!', 'success');
-                }, 1000);
-                
-            } catch (error) {
-                console.error('Error processing document:', error);
-                showNotification('Error processing document: ' + error.message, 'error');
-                hideProcessingStatus();
-            }
-            
-            isProcessing = false;
-        }
-
-        function getFileType(filename) {
-            const extension = filename.split('.').pop().toLowerCase();
-            const typeMap = {
-                'pdf': 'PDF Document',
-                'docx': 'Word Document',
-                'pptx': 'PowerPoint Presentation',
-                'txt': 'Text Document'
-            };
-            return typeMap[extension] || 'Unknown';
-        }
-
-        function displayDocumentInfo(docData) {
-            document.getElementById('documentType').textContent = docData.type;
-            document.getElementById('pageCount').textContent = `${docData.pageCount} pages (${docData.classification})`;
-            document.getElementById('chunkCount').textContent = `${docData.chunks} chunks`;
-            
-            const summaryElement = document.getElementById('documentSummary');
-            summaryElement.innerHTML = '';
-            
-            let i = 0;
-            const summary = docData.summary;
-            const typeInterval = setInterval(() => {
-                if (i < summary.length) {
-                    summaryElement.textContent += summary.charAt(i);
-                    i++;
-                } else {
-                    clearInterval(typeInterval);
-                }
-            }, 20);
-            
-            document.getElementById('documentAnalysis').classList.remove('hidden');
-        }
-
-        function enableQueryInterface() {
-            document.getElementById('queryInput').disabled = false;
-            document.getElementById('querySubmit').disabled = false;
-            document.querySelectorAll('.suggestion-btn').forEach(btn => {
-                btn.disabled = false;
-            });
-        }
-
-        async function processQuery(query) {
-            if (!currentDocument) return;
-            
-            addQueryToHistory(query);
-            
-            try {
-                const formData = new FormData();
-                formData.append('filename', currentDocument.name);
-                formData.append('query', query);
-                
-                const response = await fetch('/query', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (!response.ok) {
-                    let errorMessage = 'Query failed';
-                    try {
-                        const errorData = await response.json();
-                        errorMessage = errorData.error || 'Query failed';
-                    } catch (jsonError) {
-                        // If response is not JSON (e.g., HTML error page), get text content
-                        const errorText = await response.text();
-                        console.error('Non-JSON error response:', errorText);
-                        errorMessage = `Server error (${response.status}): ${response.statusText}`;
-                    }
-                    throw new Error(errorMessage);
-                }
-                
-                const result = await response.json();
-                addResponseToHistory(result.answer);
-                
-            } catch (error) {
-                console.error('Error processing query:', error);
-                addResponseToHistory('Sorry, I encountered an error while processing your query. Please try again.');
-            }
-        }
-
-        function addQueryToHistory(query) {
-            const historyContainer = document.getElementById('queryHistory');
-            const queryElement = document.createElement('div');
-            queryElement.className = 'query-bubble p-4 ml-8';
-            queryElement.innerHTML = `
-                <div class="flex items-start">
-                    <div class="flex-shrink-0 w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center mr-3 mt-1">
-                        <span class="text-sm">U</span>
-                    </div>
-                    <div class="flex-1">
-                        <p class="font-medium">${query}</p>
-                        <p class="text-sm text-gray-500 mt-1">${new Date().toLocaleTimeString()}</p>
-                    </div>
-                </div>
-            `;
-            historyContainer.appendChild(queryElement);
-            historyContainer.scrollTop = historyContainer.scrollHeight;
-        }
-
-        function addResponseToHistory(response) {
-            const historyContainer = document.getElementById('queryHistory');
-            const responseElement = document.createElement('div');
-            responseElement.className = 'response-bubble p-4 mr-8';
-            responseElement.innerHTML = `
-                <div class="flex items-start">
-                    <div class="flex-shrink-0 w-8 h-8 bg-[var(--pastel-blue)] rounded-full flex items-center justify-center mr-3 mt-1">
-                        <span class="text-sm">A</span>
-                    </div>
-                    <div class="flex-1">
-                        <div class="typing-indicator mb-2">
-                            <span class="inline-block w-2 h-2 bg-[var(--pastel-blue)] rounded-full animate-pulse"></span>
-                            <span class="inline-block w-2 h-2 bg-[var(--pastel-blue)] rounded-full animate-pulse ml-1" style="animation-delay: 0.2s;"></span>
-                            <span class="inline-block w-2 h-2 bg-[var(--pastel-blue)] rounded-full animate-pulse ml-1" style="animation-delay: 0.4s;"></span>
-                        </div>
-                        <p class="response-text hidden leading-relaxed"></p>
-                        <p class="text-sm text-gray-500 mt-2">${new Date().toLocaleTimeString()}</p>
-                    </div>
-                </div>
-            `;
-            historyContainer.appendChild(responseElement);
-            historyContainer.scrollTop = historyContainer.scrollHeight;
-            
-            setTimeout(() => {
-                const typingIndicator = responseElement.querySelector('.typing-indicator');
-                const responseText = responseElement.querySelector('.response-text');
-                
-                typingIndicator.classList.add('hidden');
-                responseText.classList.remove('hidden');
-                
-                let i = 0;
-                const typeInterval = setInterval(() => {
-                    if (i < response.length) {
-                        responseText.textContent += response.charAt(i);
-                        i++;
-                        historyContainer.scrollTop = historyContainer.scrollHeight;
-                    } else {
-                        clearInterval(typeInterval);
-                    }
-                }, 30);
-            }, 1500);
-        }
-
-        function showProcessingStatus() {
-            document.getElementById('processingStatus').classList.remove('hidden');
-            document.getElementById('fileUploadArea').style.opacity = '0.5';
-            document.getElementById('fileUploadArea').style.pointerEvents = 'none';
-        }
-
-        function hideProcessingStatus() {
-            document.getElementById('processingStatus').classList.add('hidden');
-            document.getElementById('fileUploadArea').style.opacity = '1';
-            document.getElementById('fileUploadArea').style.pointerEvents = 'auto';
-        }
-
-        function updateProcessingStep(message, percentage) {
-            const stepsContainer = document.getElementById('processingSteps');
-            const progressBar = document.getElementById('progressBar');
-            const percentageDisplay = document.getElementById('processingPercentage');
-            
-            progressBar.style.width = percentage + '%';
-            percentageDisplay.textContent = percentage + '%';
-            
-            const stepElement = document.createElement('div');
-            stepElement.className = 'flex items-center text-sm text-gray-400';
-            stepElement.innerHTML = `
-                <div class="w-2 h-2 bg-[var(--pastel-blue)] rounded-full mr-3 flex-shrink-0"></div>
-                <span>${message}</span>
-            `;
-            stepsContainer.appendChild(stepElement);
-            
-            while (stepsContainer.children.length > 3) {
-                stepsContainer.removeChild(stepsContainer.firstChild);
-            }
-        }
-
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            const bgColor = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500';
-            
-            notification.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transform translate-x-full transition-transform duration-300`;
-            notification.textContent = message;
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.classList.remove('translate-x-full');
-            }, 100);
-            
-            setTimeout(() => {
-                notification.classList.add('translate-x-full');
-                setTimeout(() => {
-                    if (notification.parentNode) {
-                        notification.parentNode.removeChild(notification);
-                    }
-                }, 300);
-            }, 4000);
-        }
+    }
     </script>
 </body>
 </html>
-    """
+"""
 
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
