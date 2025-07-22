@@ -1,0 +1,267 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Glassmorphism Background */
+    --background: 250 100% 98%;
+    --foreground: 230 84% 12%;
+
+    /* Glass Cards */
+    --card: 0 0% 100% / 0.1;
+    --card-foreground: 230 84% 12%;
+    --card-border: 0 0% 100% / 0.2;
+
+    /* Popover */
+    --popover: 0 0% 100% / 0.95;
+    --popover-foreground: 230 84% 12%;
+
+    /* AI Theme Colors */
+    --primary: 260 100% 65%;
+    --primary-glow: 280 100% 75%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 270 50% 95%;
+    --secondary-foreground: 260 84% 20%;
+
+    --muted: 270 30% 96%;
+    --muted-foreground: 240 20% 50%;
+
+    --accent: 280 100% 85%;
+    --accent-foreground: 260 84% 20%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 98%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 98%;
+
+    /* Glassmorphism borders and inputs */
+    --border: 0 0% 100% / 0.2;
+    --input: 0 0% 100% / 0.1;
+    --ring: 260 100% 65%;
+
+    /* Design System */
+    --radius: 1rem;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-bg: linear-gradient(135deg, hsl(250 100% 98%), hsl(270 100% 96%));
+    --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    
+    /* Shadows */
+    --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.1);
+    --shadow-primary: 0 8px 32px hsl(var(--primary) / 0.3);
+    
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Dark theme background */
+    --background: 220 20% 8%;
+    --foreground: 210 40% 95%;
+
+    /* Glass Cards for dark theme */
+    --card: 220 20% 12%;
+    --card-foreground: 210 40% 95%;
+    --card-border: 0 0% 100% / 0.1;
+
+    /* Popover */
+    --popover: 220 20% 12%;
+    --popover-foreground: 210 40% 95%;
+
+    /* AI Theme Colors for dark */
+    --primary: 260 100% 70%;
+    --primary-glow: 280 100% 80%;
+    --primary-foreground: 220 20% 8%;
+
+    --secondary: 220 20% 15%;
+    --secondary-foreground: 210 40% 90%;
+
+    --muted: 220 20% 15%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 260 80% 25%;
+    --accent-foreground: 210 40% 95%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 95%;
+
+    --success: 142 76% 45%;
+    --success-foreground: 210 40% 95%;
+
+    --warning: 38 92% 60%;
+    --warning-foreground: 220 20% 8%;
+
+    /* Glassmorphism borders and inputs for dark */
+    --border: 0 0% 100% / 0.15;
+    --input: 220 20% 15%;
+    --ring: 260 100% 70%;
+
+    /* Dark theme gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-bg: linear-gradient(135deg, hsl(220 20% 8%), hsl(230 20% 10%));
+    --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+    
+    /* Dark theme shadows */
+    --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --shadow-primary: 0 8px 32px hsl(var(--primary) / 0.4);
+
+    --sidebar-background: 220 20% 10%;
+    --sidebar-foreground: 210 40% 90%;
+    --sidebar-primary: 260 100% 70%;
+    --sidebar-primary-foreground: 220 20% 8%;
+    --sidebar-accent: 220 20% 15%;
+    --sidebar-accent-foreground: 210 40% 90%;
+    --sidebar-border: 220 20% 15%;
+    --sidebar-ring: 260 100% 70%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    background: var(--gradient-bg);
+    min-height: 100vh;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+}
+
+@layer components {
+  /* Glass card effect */
+  .glass-card {
+    @apply backdrop-blur-xl border border-white/20 bg-white/10;
+    box-shadow: var(--shadow-glass);
+    background: var(--gradient-glass);
+    border-radius: 1.5rem; /* 24px - more rounded corners */
+  }
+  
+  /* Primary gradient button */
+  .btn-primary {
+    background: var(--gradient-primary);
+    box-shadow: var(--shadow-primary);
+    transition: var(--transition-spring);
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply text-primary-foreground font-medium px-6 py-3 rounded-2xl;
+  }
+  
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px hsl(var(--primary) / 0.4);
+  }
+  
+  /* Animated gradient text */
+  .gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  /* Typing animation */
+  .typing-animation {
+    overflow: hidden;
+    border-right: 2px solid hsl(var(--primary));
+    white-space: nowrap;
+    animation: typing 3s steps(40, end), blink-caret 0.75s step-end infinite;
+  }
+  
+  /* Upload area */
+  .upload-area {
+    @apply glass-card p-8 border-dashed border-2 border-primary/30;
+    transition: var(--transition-smooth);
+  }
+  
+  .upload-area:hover {
+    @apply border-primary/50 bg-primary/5;
+    transform: translateY(-2px);
+  }
+  
+  .upload-area.dragover {
+    @apply border-primary bg-primary/10;
+    transform: scale(1.02);
+  }
+}
+
+@layer utilities {
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+  
+  .animation-delay-400 {
+    animation-delay: 400ms;
+  }
+}
+
+@keyframes typing {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes blink-caret {
+  from, to { border-color: transparent; }
+  50% { border-color: hsl(var(--primary)); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px hsl(var(--primary) / 0.2); }
+  50% { box-shadow: 0 0 40px hsl(var(--primary) / 0.4); }
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.3);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.5);
+}

@@ -31,12 +31,9 @@ ehthumbs.db
 # Node
 node_modules/
 
-# Frontend build
+# Frontend build artifacts only
 frontend/dist/
-frontend/node_modules
-frontend/dist
-uploaded_docs
-static
+frontend/node_modules/
 
 # Logs
 *.log
