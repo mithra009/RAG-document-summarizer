@@ -1,3 +1,14 @@
+---
+title: RAG Document Summarizer
+emoji: "📄"
+colorFrom: indigo
+colorTo: indigo
+sdk: docker
+sdk_version: "0.0.0"
+app_file: app.py
+pinned: false
+---
+
 # RAG Document Summarizer
 
 A modern Retrieval-Augmented Generation (RAG) web app for uploading documents, getting AI-generated summaries and asking questions.
