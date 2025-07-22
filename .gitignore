@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+
+# Virtual environments
+.env
+.venv
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# VSCode
+.vscode/
+
+# PyCharm
+.idea/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+
+# Node
+node_modules/
+
+# Frontend build
+frontend/dist/
+frontend/node_modules
+frontend/dist
+uploaded_docs
+static
+
+# Logs
+*.log
+
+# Uploaded documents
+uploaded_docs/*
+!uploaded_docs/.gitkeep
+
+# Docker
+*.dockerignore
+
+# Misc
+*.zip
+*.pdf
+*.docx
+*.pptx
+
+# Ignore lock files (optional, if you want to keep them, remove these lines)
+package-lock.json
+bun.lockb
+
+# Ignore test coverage
+.coverage
+coverage.xml
+
+# Ignore deployment scripts
+.deploy*
+
+# Ignore markdown files (optional, if you want to keep them, remove this line)
+# *.md 

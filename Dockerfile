@@ -1,29 +1,45 @@
-# --- Build frontend ---
-FROM node:20 AS frontend-build
-WORKDIR /app/frontend
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm install
-COPY frontend/ .
+# -------- Stage 1: Build Frontend --------
+FROM node:20-slim AS frontend-builder
+WORKDIR /frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend ./
 RUN npm run build
 
-# --- Build backend ---
+# -------- Stage 2: Build Backend & final image --------
 FROM python:3.10-slim AS backend
+
+# Environment
+ARG MISTRAL_API_KEY
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    MISTRAL_API_KEY=${MISTRAL_API_KEY}
+
+# Create non-root user
+RUN addgroup --system app && adduser --system --ingroup app app
 WORKDIR /app
 
-# Install Python dependencies
-COPY requirements.txt .
+# System deps (for PDF/text extraction etc.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential libreoffice poppler-utils libgl1 libglib2.0-0 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Python deps
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend code
-COPY app/ ./app/
-COPY uploaded_docs/ ./uploaded_docs/
+# Backend source
+COPY app ./app
 
-# Copy built frontend static files
-COPY --from=frontend-build /app/frontend/dist ./static
+# Static frontend
+COPY --from=frontend-builder /frontend/dist ./static
 
-# (Optional) If using FastAPI to serve static files:
-RUN pip install fastapi[all] uvicorn
+# Create uploads directory with correct ownership
+RUN mkdir -p /app/uploaded_docs && chown -R app:app /app/uploaded_docs
 
-EXPOSE 7860
+# Uploaded docs volume (optional)
+VOLUME ["/app/uploaded_docs"]
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
+USER app
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

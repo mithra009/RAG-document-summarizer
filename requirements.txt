@@ -19,4 +19,5 @@ opencv-python
 pillow
 numpy
 pdf2image>=1.16.0
-torch 
+torch
+mistralai 

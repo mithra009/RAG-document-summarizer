@@ -5,6 +5,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
 import requests
 import os
+from mistralai import Mistral
 
 # Remove top-level import of transformers and torch
 # from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -62,10 +63,9 @@ def clean_markdown_formatting(text: str) -> str:
     
     return text
 
-MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")
-if not MISTRAL_API_KEY:
-    print("[WARNING] MISTRAL_API_KEY environment variable is not set. API calls will fail.")
-MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
+# We defer reading MISTRAL_API_KEY until runtime (after load_dotenv)
+# so that dotenv values are correctly picked up.
+
 
 class DocumentSummarizer:
     def __init__(self, chunk_size=1200, chunk_overlap=200):
@@ -73,7 +73,6 @@ class DocumentSummarizer:
         Initialize the document summarizer (CPU-optimized version)
         
         Args:
-            llm_model: Qwen2-0.5B model instance (CPU-friendly)
             chunk_size: Size of text chunks for processing (optimized for CPU)
             chunk_overlap: Overlap between chunks (reduced for memory efficiency)
         """
@@ -135,24 +134,24 @@ class DocumentSummarizer:
         return text[:max_tokens * 4]
 
     def call_mistral_api(self, prompt: str) -> str:
-        headers = {
-            "Authorization": f"Bearer {MISTRAL_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        data = {
-            "model": "mistral-medium",
-            "messages": [
-                {"role": "user", "content": prompt}
-            ],
-            "max_tokens": 500,
-            "temperature": 0.3,
-            "top_p": 0.8
-        }
         try:
-            response = requests.post(MISTRAL_API_URL, headers=headers, json=data, timeout=60)
-            response.raise_for_status()
-            result = response.json()
-            return result["choices"][0]["message"]["content"].strip()
+            api_key = os.getenv("MISTRAL_API_KEY", "")
+            if not api_key:
+                return "[Error: MISTRAL_API_KEY not set]"
+            client = Mistral(api_key=api_key)
+            chat_response = client.chat.complete(
+                model="mistral-large-latest",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    }
+                ],
+                max_tokens=500,
+                temperature=0.3,
+                top_p=0.8
+            )
+            return chat_response.choices[0].message.content.strip()
         except Exception as e:
             print(f"[WARNING] Error calling Mistral API: {e}")
             return "[Error: Unable to generate summary with Mistral AI API.]"
